@@ -15,7 +15,7 @@
 Unlike other launchers based on Electron or Web technologies, Neko Frp Launcher is built with **native .NET 8 (C#)**, ensuring minimal resource usage, instant startup, and a clean user experience.
 
 > [!IMPORTANT]
-> **⚠️ Core Component Required
+> **⚠️ Core Component Required**
 > This software is a GUI Launcher. It does **NOT** include the `frpc.exe` core file.
 > You **MUST** download `frpc_windows_amd64.zip` from the official repo and put `frpc.exe` in the same folder as this launcher.
 >
@@ -59,7 +59,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 
 与基于 Electron 或 Web 技术的启动器不同，本项目完全基于 **原生 .NET 8 (C#)** 开发，旨在提供极致的性能、超低的内存占用以及纯净的用户体验。
 
-> [!IMPORTANT]
+> [!注意]
 > **核心组件缺失说明**
 >
 > 本软件仅为启动器，**不包含** `frpc.exe` 核心文件。
