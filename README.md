@@ -45,7 +45,7 @@ cd Neko-Frp-Launcher
 
 # Build (Self-contained single file)
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-
+```
 ## 🇨🇳 简体中文
 
 **Neko Frp Launcher** 是一款专为 Windows 打造的轻量级、高性能、原生 FRP (Fast Reverse Proxy) 启动器。
@@ -83,3 +83,14 @@ cd Neko-Frp-Launcher
 
 # 编译发布 (生成独立单文件)
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+```
+
+## 📜 License / 协议
+
+Licensed under the [MIT License](LICENSE).
+本项目遵循 MIT 开源协议。
+
+## ❤️ Credits / 致谢
+
+* Core logic based on **[fatedier/frp](https://github.com/fatedier/frp)**.
+* Thanks to the open source community.
