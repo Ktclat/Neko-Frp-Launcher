@@ -55,7 +55,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 ## 📜 License
 
-Licensed under the [MIT License](LICENSE).
+* Licensed under the [MIT License](LICENSE).
 
 ## ❤️ Credits
 
@@ -111,7 +111,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 
 ## 📜协议
-*本项目遵循 MIT 开源协议。
+* 本项目遵循 MIT 开源协议。
 
 ## ❤️致谢
 
