@@ -24,7 +24,7 @@ Unlike other launchers based on Electron or Web technologies, Neko Frp Launcher 
 * **🎨 Modern UI:** Clean interface with system tray support.
 
 > [!IMPORTANT]
-> **⚠️ Core Component Required **
+> **⚠️ Core Component Required**
 > This software is a GUI Launcher. It does **NOT** include the `frpc.exe` core file.
 > You **MUST** download `frpc_windows_amd64.zip` from the official repo and put `frpc.exe` in the same folder as this launcher.
 >
