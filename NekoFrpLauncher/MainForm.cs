@@ -1,21 +1,21 @@
 ﻿using System;
 using System.Drawing;
-using System.Reflection; // 必须引用，用于读取嵌入资源
+using System.Reflection;
 using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace NekoFrpLauncher
 {
     public partial class MainForm : Form
     {
         private readonly FrpCore _core = new FrpCore();
-
-        // 页面引用
         private PageFastConfig pageFast;
         private PageDetailedConfig pageDetailed;
         private PageSettings pageSettings;
         private PageAbout pageAbout;
+        private TabPage pageLog; // 新增日志页
+        private RichTextBox txtLogBox; // 日志显示控件
 
-        // 底部控件
         private Button btnStart, btnStop;
         private Label lblStatus;
         private NotifyIcon trayIcon;
@@ -24,25 +24,40 @@ namespace NekoFrpLauncher
         {
             InitializeWindow();
             BuildUI();
+
+            // 绑定日志事件
+            _core.OnLogReceived += (logLine) => {
+                if (txtLogBox.InvokeRequired)
+                {
+                    txtLogBox.Invoke(new Action(() => AppendLog(logLine)));
+                }
+                else
+                {
+                    AppendLog(logLine);
+                }
+            };
+        }
+
+        private void AppendLog(string msg)
+        {
+            txtLogBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\r\n");
+            txtLogBox.SelectionStart = txtLogBox.Text.Length;
+            txtLogBox.ScrollToCaret();
+            // 自动清理过长日志
+            if (txtLogBox.Lines.Length > 500) txtLogBox.Clear();
         }
 
         private void InitializeWindow()
         {
             this.Text = "Neko Frp Launcher";
-            this.Size = new Size(450, 540);
+            this.Size = new Size(480, 580); // 略微调高布局
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.MaximizeBox = true;
-
-            // 【关键修改 1】必须开启图标显示，否则任务栏无法显示自定义图标
             this.ShowIcon = true;
-
-            // 【关键修改 2】加载 icons 文件夹下的 logo.ico
             LoadAppIcon();
 
             trayIcon = new NotifyIcon
             {
-                Icon = this.Icon, // 托盘图标同步使用主图标
+                Icon = this.Icon,
                 Text = "Neko Frp Launcher",
                 Visible = false
             };
@@ -53,100 +68,125 @@ namespace NekoFrpLauncher
         {
             try
             {
-                // 资源名称规则：命名空间.文件夹.文件名
-                // 请确保 icons 文件夹里有 logo.ico，且属性为“嵌入的资源”
                 string resourceName = "NekoFrpLauncher.icons.logo.ico";
                 var assembly = Assembly.GetExecutingAssembly();
-
                 using (var stream = assembly.GetManifestResourceStream(resourceName))
                 {
-                    if (stream != null)
-                    {
-                        // 直接加载 .ico 文件，它会自动包含多种尺寸(16x16, 32x32等)
-                        // 这样任务栏(32px)和标题栏(16px)都会很清晰
-                        this.Icon = new Icon(stream);
-                    }
-                    else
-                    {
-                        // 没找到资源时的保底
-                        this.Icon = SystemIcons.Application;
-                    }
+                    if (stream != null) this.Icon = new Icon(stream);
+                    else this.Icon = SystemIcons.Application;
                 }
             }
-            catch
-            {
-                this.Icon = SystemIcons.Application;
-            }
+            catch { this.Icon = SystemIcons.Application; }
         }
 
         private void BuildUI()
         {
-            // 底部功能区
-            FlowLayoutPanel pnlBottom = new FlowLayoutPanel
+            // --- 底部面板 (找回状态指示) ---
+            Panel pnlBottom = new Panel
             {
                 Dock = DockStyle.Bottom,
-                Height = 65,
+                Height = 70,
                 BackColor = Color.WhiteSmoke,
-                Padding = new Padding(15, 5, 5, 5),
-                FlowDirection = FlowDirection.LeftToRight
+                Padding = new Padding(10)
             };
 
-            btnStart = UIBuilder.CreateMainButton("🚀 启动 FRP", 110, 40);
-            btnStop = UIBuilder.CreateMainButton("🛑 停止", 90, 40);
+            btnStart = UIBuilder.CreateMainButton("🚀 启动", 100, 35);
+            btnStop = UIBuilder.CreateMainButton("🛑 停止", 100, 35);
+            btnStart.Location = new Point(15, 15);
+            btnStop.Location = new Point(125, 15);
             btnStop.Enabled = false;
 
-            Panel pnlStatusWrap = new Panel { Size = new Size(150, 40), Margin = new Padding(10, 10, 0, 0) };
-            lblStatus = UIBuilder.CreateLabel("状态: 未运行", 0, 12);
+            lblStatus = UIBuilder.CreateLabel("状态: 未运行", 240, 22, false);
+            lblStatus.Font = new Font("Microsoft YaHei", 10, FontStyle.Bold);
             lblStatus.ForeColor = Color.Gray;
-            pnlStatusWrap.Controls.Add(lblStatus);
-
-            btnStart.Click += Global_BtnStart_Click;
-            btnStop.Click += Global_BtnStop_Click;
+            lblStatus.AutoSize = true;
 
             pnlBottom.Controls.Add(btnStart);
             pnlBottom.Controls.Add(btnStop);
-            pnlBottom.Controls.Add(pnlStatusWrap);
-
+            pnlBottom.Controls.Add(lblStatus);
             this.Controls.Add(pnlBottom);
 
-            // 内容区
+            // --- Tab内容区 ---
             TabControl tabContent = new TabControl { Dock = DockStyle.Fill };
 
             pageFast = new PageFastConfig(_core);
             pageDetailed = new PageDetailedConfig(_core);
+
+            // --- 创建实时日志页 ---
+            pageLog = new TabPage("📃 运行日志");
+            pageLog.BackColor = Color.White;
+            txtLogBox = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BackColor = Color.Black,
+                ForeColor = Color.LightGreen,
+                Font = new Font("Consolas", 9),
+                BorderStyle = BorderStyle.None
+            };
+            pageLog.Controls.Add(txtLogBox);
+
             pageSettings = new PageSettings(_core);
             pageAbout = new PageAbout();
 
             tabContent.TabPages.Add(pageFast);
             tabContent.TabPages.Add(pageDetailed);
+            tabContent.TabPages.Add(pageLog); // 加入日志页
             tabContent.TabPages.Add(pageSettings);
             tabContent.TabPages.Add(pageAbout);
 
             this.Controls.Add(tabContent);
             tabContent.BringToFront();
-            pnlBottom.SendToBack();
+
+            btnStart.Click += Global_BtnStart_Click;
+            btnStop.Click += Global_BtnStop_Click;
         }
 
-        private void Global_BtnStart_Click(object sender, EventArgs e)
+        private async void Global_BtnStart_Click(object sender, EventArgs e)
         {
             try
             {
+                btnStart.Enabled = false;
+                lblStatus.Text = "状态: 🟡 正在验证...";
+                lblStatus.ForeColor = Color.Orange;
+                txtLogBox.Clear();
+                AppendLog("正在尝试启动 frpc 进程...");
+
                 _core.StartProcess();
-                UpdateStatus(true);
-                if (pageSettings.ChkMinimizeTray.Checked)
+
+                bool success = false;
+                for (int i = 0; i < 40; i++) // 等待 4 秒确认日志
                 {
-                    this.Hide();
-                    trayIcon.Visible = true;
-                    trayIcon.ShowBalloonTip(3000, "Neko Frp", "FRP 已在后台启动", ToolTipIcon.Info);
+                    await Task.Delay(100);
+                    if (_core.IsProxySuccess) { success = true; break; }
+                    if (!_core.IsRunning() || !string.IsNullOrEmpty(_core.LastError)) break;
+                }
+
+                if (success)
+                {
+                    UpdateStatus(true);
+                    AppendLog(">>> FRP 服务启动成功，映射已建立。");
+                }
+                else
+                {
+                    string err = string.IsNullOrEmpty(_core.LastError) ? "连接服务器超时" : _core.LastError;
+                    _core.StopProcess();
+                    throw new Exception(err);
                 }
             }
-            catch (Exception ex) { MessageBox.Show("启动失败: " + ex.Message); }
+            catch (Exception ex)
+            {
+                UpdateStatus(false);
+                MessageBox.Show(ex.Message, "启动失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally { if (!_core.IsRunning()) btnStart.Enabled = true; }
         }
 
         private void Global_BtnStop_Click(object sender, EventArgs e)
         {
             _core.StopProcess();
             UpdateStatus(false);
+            AppendLog("FRP 服务已手动停止。");
         }
 
         private void UpdateStatus(bool isRunning)

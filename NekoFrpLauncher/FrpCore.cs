@@ -1,9 +1,9 @@
-﻿using Microsoft.Win32;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Win32;
 using System.Windows.Forms;
 
 namespace NekoFrpLauncher
@@ -13,66 +13,19 @@ namespace NekoFrpLauncher
         private const string CONFIG_FILE = "frpc.toml";
         private Process _frpProcess;
 
-        // --- 配置文件处理 ---
+        // 状态标志
+        public bool IsProxySuccess { get; private set; }
+        public string LastError { get; private set; }
 
-        public string LoadConfig()
-        {
-            if (File.Exists(CONFIG_FILE))
-            {
-                try { return File.ReadAllText(CONFIG_FILE, Encoding.UTF8); }
-                catch (Exception ex) { return "# 读取错误: " + ex.Message; }
-            }
-            return "# 未检测到 frpc.toml 文件\n# 请切换到“快速配置”填写，或在此处粘贴。";
-        }
-
-        public void SaveConfig(string content)
-        {
-            File.WriteAllText(CONFIG_FILE, content, Encoding.UTF8);
-        }
-
-        public string ExtractValue(string content, string key)
-        {
-            var regex = new Regex($@"{key}\s*=\s*(?:""([^""\r\n]*)""|'([^'\r\n]*)'|([^#\r\n]+))");
-            var match = regex.Match(content);
-
-            if (match.Success)
-            {
-                string rawValue = "";
-                if (match.Groups[1].Success) rawValue = match.Groups[1].Value;
-                else if (match.Groups[2].Success) rawValue = match.Groups[2].Value;
-                else if (match.Groups[3].Success) rawValue = match.Groups[3].Value;
-                return rawValue.Trim();
-            }
-            return "";
-        }
-
-        // 【修改】增加了 protocol 参数
-        public string GenerateToml(string ip, string port, string token, string localPort, string remotePort, string protocol)
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"serverAddr = \"{ip.Trim()}\"");
-            sb.AppendLine($"serverPort = {port.Trim()}");
-            sb.AppendLine("auth.method = \"token\"");
-            sb.AppendLine($"auth.token = \"{token.Trim()}\"");
-            sb.AppendLine();
-            sb.AppendLine("[[proxies]]");
-            sb.AppendLine($"name = \"game_auto_{DateTime.Now.Ticks}\"");
-
-            // 使用传入的协议，如果是空则默认 udp
-            string proto = string.IsNullOrWhiteSpace(protocol) ? "udp" : protocol.Trim().ToLower();
-            sb.AppendLine($"type = \"{proto}\"");
-
-            sb.AppendLine("localIP = \"127.0.0.1\"");
-            sb.AppendLine($"localPort = {localPort.Trim()}");
-            sb.AppendLine($"remotePort = {remotePort.Trim()}");
-            return sb.ToString();
-        }
-
-        // --- 进程管理 ---
+        // 日志订阅事件
+        public event Action<string> OnLogReceived;
 
         public void StartProcess()
         {
             if (!File.Exists("frpc.exe")) throw new FileNotFoundException("未找到 frpc.exe！");
+
+            IsProxySuccess = false;
+            LastError = "";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {
@@ -80,10 +33,38 @@ namespace NekoFrpLauncher
                 Arguments = $"-c {CONFIG_FILE}",
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = false
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = Encoding.UTF8
             };
-            _frpProcess = Process.Start(psi);
+
+            _frpProcess = new Process { StartInfo = psi };
+            _frpProcess.EnableRaisingEvents = true;
+
+            // 异步捕获输出流
+            _frpProcess.OutputDataReceived += (s, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data)) return;
+                OnLogReceived?.Invoke(e.Data); // 触发日志事件
+
+                // 核心状态判定：只有看到成功字样才算真正运行
+                if (e.Data.Contains("start proxy success") || e.Data.Contains("proxy added"))
+                {
+                    IsProxySuccess = true;
+                }
+                if (e.Data.Contains("start error") || e.Data.Contains("port not allowed"))
+                {
+                    IsProxySuccess = false;
+                    LastError = e.Data;
+                }
+            };
+
+            _frpProcess.Start();
+            _frpProcess.BeginOutputReadLine();
+            _frpProcess.BeginErrorReadLine();
         }
+
+        public bool IsRunning() => _frpProcess != null && !_frpProcess.HasExited;
 
         public void StopProcess()
         {
@@ -92,20 +73,44 @@ namespace NekoFrpLauncher
                 _frpProcess.Kill();
                 _frpProcess = null;
             }
+            IsProxySuccess = false;
+        }
+
+        public string LoadConfig() => File.Exists(CONFIG_FILE) ? File.ReadAllText(CONFIG_FILE, Encoding.UTF8) : "";
+        public void SaveConfig(string content) => File.WriteAllText(CONFIG_FILE, content, new UTF8Encoding(false));
+
+        public string ExtractValue(string content, string key)
+        {
+            var regex = new Regex($@"{key}\s*=\s*(?:""([^""\r\n]*)""|'([^'\r\n]*)'|([^#\r\n]+))");
+            var match = regex.Match(content);
+            return match.Success ? (match.Groups[1].Value + match.Groups[2].Value + match.Groups[3].Value).Trim() : "";
+        }
+
+        public string GenerateToml(string ip, string port, string token, string localPort, string remotePort, string protocol)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"serverAddr = \"{ip.Trim()}\"");
+            sb.AppendLine($"serverPort = {port.Trim()}");
+            sb.AppendLine("auth.method = \"token\"");
+            sb.AppendLine($"auth.token = \"{token.Trim()}\"");
+            sb.AppendLine("\n[[proxies]]");
+            sb.AppendLine($"name = \"game_{DateTime.Now.Ticks}\"");
+            sb.AppendLine($"type = \"{protocol.Trim().ToLower()}\"");
+            sb.AppendLine("localIP = \"127.0.0.1\"");
+            sb.AppendLine($"localPort = {localPort.Trim()}");
+            sb.AppendLine($"remotePort = {remotePort.Trim()}");
+            return sb.ToString();
         }
 
         public void SetAutoStart(bool enable)
         {
             try
             {
-                string appName = "NekoFrpLauncher";
-                string appPath = Application.ExecutablePath;
-                RegistryKey rk = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-
-                if (enable) rk.SetValue(appName, appPath);
-                else rk.DeleteValue(appName, false);
+                RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (enable) rk.SetValue("NekoFrpLauncher", Application.ExecutablePath);
+                else rk.DeleteValue("NekoFrpLauncher", false);
             }
-            catch (Exception ex) { Debug.WriteLine("自启设置失败: " + ex.Message); }
+            catch { }
         }
     }
 }
