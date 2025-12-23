@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageIcon>512x512.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="icons\16x16.png" />
+    <None Remove="icons\192x192.png" />
+    <None Remove="icons\32x32.png" />
+    <None Remove="icons\512x512.png" />
+    <None Remove="icons\logo.ico" />
+    <None Remove="neko_logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="icons\16x16.png" />
+    <EmbeddedResource Include="icons\192x192.png" />
+    <EmbeddedResource Include="icons\32x32.png" />
+    <EmbeddedResource Include="icons\512x512.png" />
+    <EmbeddedResource Include="icons\logo.ico" />
+    <EmbeddedResource Include="neko_logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\Users\edtur\Downloads\favicon_io\icons\512x512.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
