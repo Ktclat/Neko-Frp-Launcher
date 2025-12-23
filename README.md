@@ -59,7 +59,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 
 与基于 Electron 或 Web 技术的启动器不同，本项目完全基于 **原生 .NET 8 (C#)** 开发，旨在提供极致的性能、超低的内存占用以及纯净的用户体验。
 
-> [!注意]
+> [!IMPORTANT]
 > **核心组件缺失说明**
 >
 > 本软件仅为启动器，**不包含** `frpc.exe` 核心文件。
