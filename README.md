@@ -45,3 +45,41 @@ cd Neko-Frp-Launcher
 
 # Build (Self-contained single file)
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+
+## 🇨🇳 简体中文
+
+**Neko Frp Launcher** 是一款专为 Windows 打造的轻量级、高性能、原生 FRP (Fast Reverse Proxy) 启动器。
+
+与基于 Electron 或 Web 技术的启动器不同，本项目完全基于 **原生 .NET 8 (C#)** 开发，旨在提供极致的性能、超低的内存占用以及纯净的用户体验。
+
+### ✨ 核心特性
+
+* **⚡ 极致轻量:** 原生 WinForms 开发，内存占用极低（通常小于 20MB），秒启动。
+* **🚀 快速配置:** 专为联机游戏/简单服务设计的快速配置面板（支持 TCP/UDP）。
+* **🔒 隐私保护:** 智能密码掩码功能（统一显示 `******`），直播或截图时无需担心 Token 泄露。
+* **🛠️ 详细模式:** 支持完整编辑 `frpc.toml`，满足高级用户的复杂需求。
+* **📦 绿色便携:** 单文件运行，无需安装，解压即用。
+* **🎨 现代设计:** 清爽的界面布局，支持最小化到系统托盘后台运行。
+
+### 📥 下载与使用
+
+1.  **下载软件:** 前往 [Releases](../../releases) 页面下载最新的 `NekoFrpLauncher.exe`。
+2.  **下载核心:** 前往 [frp 官方仓库](https://github.com/fatedier/frp/releases) 下载 Windows 版本的 `frpc.exe`。
+3.  **安装:** 将 `NekoFrpLauncher.exe` 和 `frpc.exe` 放在 **同一个文件夹** 内。
+4.  **运行:** 双击 `NekoFrpLauncher.exe` 即可开始使用！
+
+### 🔨 源码编译
+
+编译环境要求：
+* Visual Studio 2022 (或更新版本)
+* .NET 8.0 SDK
+
+```bash
+# 克隆仓库
+git clone [https://github.com/Ktclat/Neko-Frp-Launcher.git](https://github.com/Ktclat/Neko-Frp-Launcher.git)
+
+# 进入目录
+cd Neko-Frp-Launcher
+
+# 编译发布 (生成独立单文件)
+dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
