@@ -13,11 +13,8 @@ namespace NekoFrpLauncher
         private const string CONFIG_FILE = "frpc.toml";
         private Process _frpProcess;
 
-        // 状态标志
         public bool IsProxySuccess { get; private set; }
         public string LastError { get; private set; }
-
-        // 日志订阅事件
         public event Action<string> OnLogReceived;
 
         public void StartProcess()
@@ -41,18 +38,15 @@ namespace NekoFrpLauncher
             _frpProcess = new Process { StartInfo = psi };
             _frpProcess.EnableRaisingEvents = true;
 
-            // 异步捕获输出流
             _frpProcess.OutputDataReceived += (s, e) =>
             {
                 if (string.IsNullOrEmpty(e.Data)) return;
-                OnLogReceived?.Invoke(e.Data); // 触发日志事件
+                OnLogReceived?.Invoke(e.Data);
 
-                // 核心状态判定：只有看到成功字样才算真正运行
                 if (e.Data.Contains("start proxy success") || e.Data.Contains("proxy added"))
-                {
                     IsProxySuccess = true;
-                }
-                if (e.Data.Contains("start error") || e.Data.Contains("port not allowed"))
+
+                if (e.Data.Contains("start error") || e.Data.Contains("port not allowed") || e.Data.Contains("port already used"))
                 {
                     IsProxySuccess = false;
                     LastError = e.Data;
@@ -76,13 +70,53 @@ namespace NekoFrpLauncher
             IsProxySuccess = false;
         }
 
-        public string LoadConfig() => File.Exists(CONFIG_FILE) ? File.ReadAllText(CONFIG_FILE, Encoding.UTF8) : "";
-        public void SaveConfig(string content) => File.WriteAllText(CONFIG_FILE, content, new UTF8Encoding(false));
+        public string LoadConfig()
+        {
+            if (!File.Exists(CONFIG_FILE)) return "";
+            try
+            {
+                string raw = File.ReadAllText(CONFIG_FILE, Encoding.UTF8);
+                return TryConvertIniToToml(raw);
+            }
+            catch { return ""; }
+        }
+
+        public void SaveConfig(string content)
+        {
+            string converted = TryConvertIniToToml(content);
+            File.WriteAllText(CONFIG_FILE, converted, new UTF8Encoding(false));
+        }
+
+        public string TryConvertIniToToml(string content)
+        {
+            if (content.Contains("[[proxies]]") || content.Contains("serverAddr")) return content;
+            if (content.Contains("[common]"))
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("# Auto-converted from legacy INI");
+                sb.AppendLine($"serverAddr = \"{ExtractValue(content, "serverAddr")}\"");
+                sb.AppendLine($"serverPort = {ExtractValue(content, "serverPort")}");
+                string user = ExtractValue(content, "user");
+                if (!string.IsNullOrEmpty(user)) sb.AppendLine($"user = \"{user}\"");
+                sb.AppendLine("auth.method = \"token\"");
+                sb.AppendLine($"auth.token = \"{ExtractValue(content, "token")}\"");
+                sb.AppendLine("\n[[proxies]]");
+                var m = Regex.Match(content, @"^\[(?!common)(.+)\]", RegexOptions.Multiline);
+                sb.AppendLine($"name = \"{(m.Success ? m.Groups[1].Value : "proxy")}\"");
+                sb.AppendLine($"type = \"{ExtractValue(content, "type")}\"");
+                sb.AppendLine($"localIP = \"{ExtractValue(content, "localIP")}\"");
+                sb.AppendLine($"localPort = {ExtractValue(content, "localPort")}");
+                sb.AppendLine($"remotePort = {ExtractValue(content, "remotePort")}");
+                return sb.ToString();
+            }
+            return content;
+        }
 
         public string ExtractValue(string content, string key)
         {
-            var regex = new Regex($@"{key}\s*=\s*(?:""([^""\r\n]*)""|'([^'\r\n]*)'|([^#\r\n]+))");
-            var match = regex.Match(content);
+            string underscoreKey = Regex.Replace(key, "([a-z])([A-Z])", "$1_$2").ToLower();
+            string pattern = $@"(?:{key}|{underscoreKey})\s*=\s*(?:""([^""]*)""|'([^']*)'|([^#\r\n\s]+))";
+            var match = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
             return match.Success ? (match.Groups[1].Value + match.Groups[2].Value + match.Groups[3].Value).Trim() : "";
         }
 
